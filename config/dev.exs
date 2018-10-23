@@ -14,6 +14,13 @@ config :book_buddy, BookBuddyWeb.Endpoint,
   watchers: [node: ["node_modules/brunch/bin/brunch", "watch", "--stdin",
                     cd: Path.expand("../assets", __DIR__)]]
 
+
+
+config :book_buddy,
+base_path: "http://127.0.0.1:8080/",
+static_path: "http://127.0.0.1:8080/",
+phx_server: "http://localhost:4000/"
+
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed
