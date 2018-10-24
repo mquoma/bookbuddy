@@ -17,8 +17,8 @@ config :book_buddy, BookBuddyWeb.Endpoint,
 
 
 config :book_buddy,
-base_path: "http://127.0.0.1:8080/",
-static_path: "http://127.0.0.1:8080/",
+base_path: "http://127.0.0.1:4000/",
+static_path: "http://127.0.0.1:4000/",
 phx_server: "http://localhost:4000/"
 
 # ## SSL Support
