@@ -49,9 +49,7 @@ exports.config = {
       ignore: [/vendor/]
     },
     elmBrunch: {
-      executablePath: '../node_modules/elm/binwrappers',
-      elmFolder: 'elm',
-      mainModules: ['Main.elm'],
+      mainModules: ['elm/Main.elm'],
       outputFolder: '../priv/static/js',
       outputFile: 'bundle.js',
       makeParameters: ['--warn']
