@@ -1,8 +1,8 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, text)
-import Html.Attributes
+import Html exposing (Html, button, div, h1, input, label, li, p, table, td, text, th, tr, ul)
+import Html.Attributes exposing (for, id)
 import Html.Events exposing (onClick, onInput)
 import Time exposing (now)
 
@@ -12,7 +12,9 @@ type alias Model =
     , books : List Book
     , time : String
     , pages : Int
+    , newBook : Book
     , timerStatus : TimerStatus
+    , bookPanelStatus : BookPanelStatus
     , seconds : Int
     }
 
@@ -26,9 +28,18 @@ type alias Book =
     }
 
 
+initBook =
+    Book "" "" 0 [] Closed
+
+
 type Status
     = Open
     | Closed
+
+
+type BookPanelStatus
+    = BookPanelOpen
+    | BookPanelClosed
 
 
 type TimerStatus
@@ -51,7 +62,9 @@ initialModel =
         ]
     , time = ""
     , pages = 0
+    , newBook = initBook
     , timerStatus = Stopped
+    , bookPanelStatus = BookPanelClosed
     , seconds = 0
     }
 
@@ -63,10 +76,15 @@ init flags =
 type Msg
     = UpdateEntryTime String
     | UpdateEntryPages String
+    | UpdateBookTitle String
+    | UpdateBookAuthor String
+    | UpdateBookPages String
+    | SaveBook
     | OpenEntryPanel String
+    | ToggleBookPanel
     | StartTimer
     | StopTimer
-    | Log String
+    | SaveEntry String
     | Tick Time.Posix
     | AddBook
 
@@ -74,8 +92,20 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
-        Log title ->
-            { model | books = model |> updateBook title }
+        ToggleBookPanel ->
+            { model
+                | bookPanelStatus =
+                    case model.bookPanelStatus of
+                        BookPanelOpen ->
+                            BookPanelClosed
+
+                        BookPanelClosed ->
+                            BookPanelOpen
+            }
+
+        SaveEntry title ->
+            { model | books = model |> updateBooks title }
+                |> stopTimer
 
         OpenEntryPanel title ->
             { model | books = model.books |> openBook title }
@@ -84,13 +114,18 @@ update msg model =
             { model | time = time }
 
         StartTimer ->
-            { model | timerStatus = Running }
+            model |> startTimer
 
         StopTimer ->
-            { model | timerStatus = Stopped }
+            model |> stopTimer
 
         UpdateEntryPages pages ->
-            { model | pages = pages |> String.toInt |> Maybe.withDefault 0 }
+            { model
+                | pages =
+                    pages
+                        |> String.toInt
+                        |> Maybe.withDefault 0
+            }
 
         Tick time ->
             { model
@@ -105,17 +140,58 @@ update msg model =
 
         AddBook ->
             model
+
+        UpdateBookTitle title ->
+            let
+                newBook =
+                    model.newBook
+            in
+                { model | newBook = { newBook | title = title } }
+
+        UpdateBookAuthor author ->
+            let
+                newBook =
+                    model.newBook
+            in
+                { model | newBook = { newBook | author = author } }
+
+        UpdateBookPages pages ->
+            let
+                newBook =
+                    model.newBook
+            in
+                { model | newBook = { newBook | pages = pages |> String.toInt |> Maybe.withDefault 0 } }
+
+        SaveBook ->
+            { model | books = addBook model.newBook.title model.newBook.author :: model.books }
     )
         |> (\x -> ( x, Cmd.none ))
 
 
-updateBook : String -> Model -> List Book
-updateBook title model =
+startTimer model =
+    { model | timerStatus = Running }
+
+
+stopTimer model =
+    { model | timerStatus = Stopped }
+
+
+addBook title author =
+    Book title author 0 [] Closed
+
+
+updateBooks : String -> Model -> List Book
+updateBooks title model =
     model.books
         |> List.map
             (\book ->
                 (if book.title == title then
-                    { book | entries = List.append book.entries [ createEntry model ] }
+                    { book
+                        | entries =
+                            List.append
+                                book.entries
+                                [ createEntry model ]
+                    }
                  else
                     book
                 )
@@ -142,52 +218,83 @@ openBook title books =
 view : Model -> Html Msg
 view model =
     div []
-        [ Html.h1 [] [ text "Book Buddy" ]
+        [ h1 [] [ text "Book Buddy" ]
         , renderTable model.books
         , renderEntryPanel model
-        , Html.h4 [] [ model.seconds |> String.fromInt |> text ]
-        , Html.button [ onClick AddBook ] [ text "Add a book" ]
+        , div [] [ model.seconds |> String.fromInt |> text ]
+        , button [ onClick ToggleBookPanel ] [ text "Add a book" ]
+        , renderBookPanel model.bookPanelStatus
         ]
 
 
 renderTable books =
-    books
-        |> renderRows
-        |> Html.table []
+    renderTableHeader
+        :: renderRows books
+        |> table []
+
+
+renderTableHeader =
+    tr
+        []
+        [ th [] [ text "Title" ]
+        , th [] [ text "Author" ]
+        ]
 
 
 renderRows books =
-    books |> List.map (\book -> book |> renderCells |> Html.tr [])
+    books |> List.map (\book -> book |> renderCells |> tr [])
 
 
 renderCells book =
-    [ Html.td [] [ text book.title ]
-    , Html.td [] [ text book.author ]
-    , Html.td [] [ book.pages |> String.fromInt |> text ]
-    , Html.td [] [ renderEntries book.entries ]
-    , Html.td []
-        [ Html.button [ onClick (OpenEntryPanel book.title) ] [ text "log some time" ]
+    [ td [] [ text book.title ]
+    , td [] [ text book.author ]
+    , td [] [ book.pages |> String.fromInt |> text ]
+    , td [] [ renderEntries book.entries ]
+    , td []
+        [ button [ onClick (OpenEntryPanel book.title) ] [ text "log some time" ]
         ]
     ]
 
 
 renderEntries entries =
     entries
-        |> List.map (\entry -> Html.li [] [ renderEntry entry ])
-        |> Html.ul []
+        |> List.map (\entry -> li [] [ renderEntry entry ])
+        |> ul []
 
 
 renderEntry entry =
-    Html.tr []
-        [ Html.td [] [ entry.time |> String.fromInt |> text ]
-        , Html.td [] [ entry.pages |> String.fromInt |> text ]
+    p []
+        [ Html.span [] [ entry.time |> String.fromInt |> text ]
+        , Html.span [] [ text " | " ]
+        , Html.span [] [ entry.pages |> String.fromInt |> text ]
         ]
-        |> List.singleton
-        |> Html.table []
 
 
 createEntry model =
     Entry model.seconds model.pages
+
+
+renderBookPanel status =
+    case status of
+        BookPanelClosed ->
+            div [] []
+
+        BookPanelOpen ->
+            div []
+                [ p []
+                    [ label [ for "new-book-title" ] [ text "Title" ]
+                    , input [ id "new-book-title", onInput UpdateBookTitle ] []
+                    ]
+                , p []
+                    [ label [ for "new-book-author" ] [ text "Author" ]
+                    , input [ id "new-book-author", onInput UpdateBookAuthor ] []
+                    ]
+                , p []
+                    [ label [ for "new-book-pages" ] [ text "Number of Pages" ]
+                    , input [ id "new-book-author", onInput UpdateBookPages ] []
+                    ]
+                , button [ onClick SaveBook ] [ text "save" ]
+                ]
 
 
 renderEntryPanel model =
@@ -203,17 +310,18 @@ renderEntryPanel model =
             div [] []
         else
             div []
-                [ Html.label [] []
-                , Html.input [ onInput UpdateEntryPages ] []
-                , Html.input [ Html.Attributes.id "entry-time" ] [ model.seconds |> String.fromInt |> text ]
-                , Html.button [ onClick StartTimer ] [ text "start timer" ]
-                , Html.button [ onClick StopTimer ] [ text "stop timer" ]
-                , Html.button [ onClick (Log title) ] [ text "commit" ]
+                [ p []
+                    [ label [ for "entry-pages" ] [ text "Number of Pages" ]
+                    , input [ id "entry-pages", onInput UpdateEntryPages ] []
+                    ]
+                , p []
+                    [ label [ for "entry-time" ] [ text "Time (Seconds" ]
+                    , input [ id "entry-time" ] [ model.seconds |> String.fromInt |> text ]
+                    ]
+                , button [ onClick StartTimer ] [ text "start timer" ]
+                , button [ onClick StopTimer ] [ text "stop timer" ]
+                , button [ onClick (SaveEntry title) ] [ text "save" ]
                 ]
-
-
-renderBookPanel =
-    div [] []
 
 
 document model =

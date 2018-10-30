@@ -2,7 +2,7 @@
   <div class="mainpage" id="elmDiv"
     data-endpoint="<%= Application.get_env(:book_buddy, :phx_server) <> "api/books" %>">
   </div>
-  <script src=<%= Application.get_env(:book_buddy, :base_path) <> "js/app.js" %>>
+  <script src=<%= Application.get_env(:book_buddy, :base_path) <> "js/elm.js" %>>
   </script>
 
 </div>
